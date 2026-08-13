@@ -117,11 +117,12 @@ BTO PC 店舗の実装を、自分でたどれるようにした文書。Svelte 
 
 ブラウザは「今だれか」を毎回メールとパスワードで送らない。ログイン成功時、サーバが **session cookie**（小さな覚え書き）をブラウザに置く。以後のリクエストにそれが付く。
 
-**CSRF** は、別のサイトが「今ログイン中のブラウザ」を使って勝手に注文させないための印である。このリポジトリでは次の順になる。
+**CSRF** は、別のサイトが「今ログイン中のブラウザ」を使って勝手に注文させないための印である。ログイン前の登録・ログイン POST にも同じ印が要る。このリポジトリでは次の順になる。
 
 1. 起動時に `GET /api/v1/csrf` で印（`csrftoken`）を cookie に載せる
 2. 更新系のリクエストは、その印をヘッダ `X-CSRFToken` にも載せる
 3. 載せ方は全部 `frontend/src/lib/api/client.ts` がやる。画面ごとに書かない
+4. サーバ側は `backend/application/api/authentication.py` が、未ログインの POST でも印を見る
 
 中身の暗号を追う必要はない。「ログイン維持は cookie、更新の偽物防止は CSRF、どちらも API client に閉じている」と覚えれば、コードは追える。
 
@@ -167,11 +168,12 @@ SvelteKit は、フォルダ名がブラウザの URL になる。
 |---|---|
 | `routes/configure/+page.svelte` | `/configure` の見た目 |
 | `routes/configure/+page.ts` | `/configure` を開く前のデータ取得（`load`） |
-| `routes/+layout.svelte` | 全画面共通の枠（ヘッダなど） |
+| `routes/+layout.svelte` | 全画面共通の枠（ヘッダなど）。ログアウトと、途中の 401 復旧もここ |
 | `routes/+layout.ts` | 全画面の前に一度走る初期化（ログイン確認） |
+| `routes/+error.svelte` | `load` が既知の失敗を投げたときの共通画面 |
 | `routes/orders/[uuid]/+page.svelte` | `/orders/（何か）`。`[uuid]` は可変部分 |
 
-`+` で始まる名前は SvelteKit の予約である。自分で `+page.svelte` 以外の `+何か` を増やさない。
+`+` で始まる名前は SvelteKit の予約である。このリポジトリが足しているのは `+page`、`+layout`、`+error` だけである。自分で別の `+何か` を増やさない。
 
 `load` は「この画面を出す前に走らせる関数」である。戻り値は、同じ画面の `+page.svelte` で `data` として受け取れる。
 
@@ -300,6 +302,7 @@ backend/application/api/views/staff_order.py
 | ブラウザの URL | ファイル |
 |---|---|
 | すべての画面の共通枠 | `frontend/src/routes/+layout.ts` と `+layout.svelte` |
+| `load` 失敗の共通画面 | `frontend/src/routes/+error.svelte` |
 | `/` | `frontend/src/routes/+page.ts` と `+page.svelte` |
 | `/login` | `frontend/src/routes/login/+page.svelte` |
 | `/register` | `frontend/src/routes/register/+page.svelte` |
@@ -320,7 +323,7 @@ backend/application/api/views/staff_order.py
 - `configure/CategoryRail.svelte` と `PartCard.svelte` … 構成画面専用。他画面では使わない
 - `staff/parts/PartForm.svelte` など … スタッフのパーツ画面専用
 
-再利用する部品だけが `frontend/src/lib/components/` にある。`AppHeader.svelte`、`PartSummaryList.svelte`、`OrderStatusText.svelte` など。これらはサーバへ取りに行かない。親の page が取ったデータを引数（props）で受け取る。
+再利用する部品だけが `frontend/src/lib/components/` にある。`AppHeader.svelte`、`PartSummaryList.svelte`、`OrderStatusText.svelte` など。これらはサーバへ取りに行かない。親の page または layout が取ったデータと、押されたときに呼ぶ関数を引数（props）で受け取る。ログアウトの HTTP は layout が呼び、ヘッダは `onlogout` を受け取るだけである。
 
 ---
 
@@ -335,9 +338,11 @@ backend/application/api/views/staff_order.py
       ログイン済みなら currentUserState を埋める
 2. +layout.svelte
       ログイン済みならヘッダとフッタを出す
+      ログアウトと、あとから来た 401 の復旧を登録する
       子ページを描画する
 3. configure/+page.ts の load
       listParts() で掲載中パーツを全部取る
+      失敗は throwLoadFailure で +error.svelte へ
       戻り値 { parts } が page の data になる
 4. configure/+page.svelte
       data.parts を表示する
@@ -364,11 +369,15 @@ backend/application/api/views/staff_order.py
 
 ```ts
 export const load: PageLoad = async () => {
-	return { parts: await listParts() };
+	try {
+		return { parts: await listParts() };
+	} catch (error) {
+		throwLoadFailure(error);
+	}
 };
 ```
 
-画面を出す前に `listParts` を待ち、結果を `parts` という名前で page に渡す。`listParts` の定義へ進む。
+画面を出す前に `listParts` を待ち、結果を `parts` という名前で page に渡す。失敗は `frontend/src/lib/errors/loadFailure.ts` が HTTP の失敗に写し、`+error.svelte` が出る。`listParts` の定義へ進む。
 
 ### 6.2 API client
 
@@ -430,7 +439,7 @@ def part_list(request: Request) -> Response:
 1. GET 以外は受けない。ログインしていない人はここで拒否
 2. URL の `?category=cpu` のような付属情報を Serializer で検査する
 3. 読み取り役 `list_listed_parts` に渡す
-4. 1件ずつ JSON 用の辞書にし、出力 Serializer で形を整えて返す
+4. `part_output_payload`（`api/serializers/part.py`）で JSON 用の辞書にし、出力 Serializer で形を整えて返す
 
 | View がやる | View がやらない |
 |---|---|
@@ -474,13 +483,16 @@ JSON が `data.parts` として `configure/+page.svelte` に入る。page は選
 
 ```text
 1. createOrder({ part_ids, ...shipping })     POST /api/v1/orders   注文を作る
-2. getOrder(created.public_id)                GET  /api/v1/orders/{uuid}  作り直さず読み直す
-3. setSyncedOrder(order)                      確認画面の正を、今読んだ応答にする
-4. resetDraft()                               未保存の選択を空にする
-5. goto(/orders/{uuid})                       確認画面へ移る
+2. 返った public_id を createdPublicId に残す
+3. getOrder(createdPublicId)                  GET  /api/v1/orders/{uuid}  作り直さず読み直す
+4. setSyncedOrder(order)                      確認画面の正を、今読んだ応答にする
+5. resetDraft()                               未保存の選択を空にする
+6. goto(/orders/{uuid})                       確認画面へ移る
 ```
 
 失敗したら途中で止めて文言を出し、未保存の選択は残す。成功の途中で画面を空にしない。
+
+POST が通ったあと GET だけが失敗した場合、`createdPublicId` が残る。次に決済ボタンを押しても POST は繰り返さない。GET の再試行だけをする。同じドラフトで二重に注文を作らないため。
 
 `createOrder` の戻りは `{ public_id }`（公開番号）だけである。行や合計は含まれない。金額の正は直後の読み直しである。作った直後のテーブル行を画面に渡して書き換えさせない、という置き方である。
 
@@ -524,14 +536,15 @@ Serializer はテーブルを触らない。郵便番号の桁数のような **
 
 ```text
 途中失敗なら全部なかったことにする（transaction.atomic）
-1. パーツ番号を重複除去し、番号の小さい順に行をロックして取る
+1. パーツ番号を一意化し、番号の小さい順に行をロックして取る
 2. 件数が足りなければ part.not_found
-3. 未掲載なら order.part_unlisted
-4. 在庫 0 なら order.insufficient_stock
-5. 配件の組み合わせを Validator で見る
-6. 今の単価で合計する（画面が送った金額は見ない）
-7. 在庫を 1 減らし、注文と注文明細を作る（状態は paid）
-8. 公開番号だけ返す
+3. 元の番号列に同じ ID が2回あれば configuration.duplicate_category（消して通さない）
+4. 未掲載なら order.part_unlisted
+5. 在庫 0 なら order.insufficient_stock
+6. 配件の組み合わせを Validator で見る
+7. 今の単価で合計する（画面が送った金額は見ない）
+8. 在庫を 1 減らし、注文と注文明細を作る（状態は paid）
+9. 公開番号だけ返す
 ```
 
 ここで覚えることは3つ。
@@ -584,9 +597,9 @@ Service が cookie を付けない。HTTP の「ログイン状態をブラウ�
 
 `create_session`（`services/session.py`）は、整えたメールを Django 標準ユーザーの名前欄として探す。無い、パスワードが違う、無効、のどれも同じ失敗にする。「メールが無い」と「パスワードが違う」を分けない（メールの存在を外に漏らさない）。
 
-登録は対になる `POST /api/v1/registrations`。成功時も cookie を付け、同じ「今のユーザー」形を返す。
+登録は対になる `POST /api/v1/registrations`。`create_registration` は、整えたメールが名前欄またはメール欄に既にあれば拒否し、Django 既定のパスワード検証も通す。成功時も cookie を付け、同じ「今のユーザー」形を返す。
 
-ログアウトは `DELETE /api/v1/sessions`。ヘッダが呼び、成功後に画面側のユーザー・未保存選択・保存済み注文を全部空にして `/login` へ行く。
+ログアウトは `DELETE /api/v1/sessions`。呼ぶのは `+layout.svelte` である。ヘッダは `onlogout` を受け取るだけで、API client は呼ばない。サーバ側の切断が失敗しても、画面側のユーザー・未保存選択・保存済み注文を全部空にして `/login` へ行く。
 
 ---
 
@@ -598,7 +611,8 @@ Service が cookie を付けない。HTTP の「ログイン状態をブラウ�
 |---|---|
 | `api/urls.py` | パスの目次 |
 | `api/views/` | HTTP の入口。次に誰を呼ぶか |
-| `api/serializers/` | JSON の入口と出口 |
+| `api/serializers/` | JSON の入口と出口。出力用の辞書化もここ |
+| `api/authentication.py` | 未ログインの更新でも CSRF を見る |
 | `api/exception_handler.py` | 失敗を決まった JSON にする |
 | `services/` | 更新の本体 |
 | `selectors/` | 読み取りの本体 |
@@ -617,7 +631,7 @@ Service が cookie を付けない。HTTP の「ログイン状態をブラウ�
 
 ## 10. 画面をまたぐ状態
 
-1画面の中だけの変数は、その `+page.svelte` の `$state` に置く。画面をまたいで残すものだけが `frontend/src/lib/states/` にある。このリポジトリでは3つだけ。
+1画面の中だけの変数は、その `+page.svelte` の `$state` に置く。画面をまたいで残すものだけが `frontend/src/lib/states/` にある。状態そのものは次の3つだけ。空にする処理は `clientSession.ts` の `clearClientSession` にまとまっている。
 
 | ファイル | 中身 | 誰が書くか | どれを正とするか |
 |---|---|---|---|
@@ -666,6 +680,8 @@ Service / Selector / Validator が、名前付きの例外を投げる
 
 ボタンや見出しの固定文言は `lib/messages/ui.ts`。部品に日本語を直書きしない。文言を直したいときは、まず `lib/messages/` を開く。
 
+`+page.ts` の `load` が失敗したとき、注文詳細の `order.not_found` のように page が自分で出す場合を除き、`throwLoadFailure` が `+error.svelte` へ渡す。共通画面は名前を日本語に写し、401 ならログインへ、それ以外なら構成へ戻す導線を出す。
+
 ### 11.3 認証まわり
 
 | 状況 | HTTP | 名前 |
@@ -678,6 +694,8 @@ Service / Selector / Validator が、名前付きの例外を投げる
 
 画面でスタッフメニューを隠すことと、API が拒否することは別である。スタッフでない人が `/staff/parts` を開くと、共通 layout が構成画面へ飛ばす。それでも API を直接叩けばサーバが 403 を返す。画面で隠したことが権限の代わりにはならない。
 
+初期化のあと、決済など別の API が `authentication.required` の 401 を返した場合、`lib/api/client.ts` が layout に知らせる。layout は `clearClientSession` して `/login` へ移す。画面ごとに同じ復旧を書かない。
+
 ---
 
 ## 12. 配件の一致判定だけ別扱い
@@ -688,9 +706,11 @@ CPU とマザーボードのソケットが合うか、などは、テーブル�
   View → 読み取り役 → 判定結果のかたまり
 - 決済: 注文作成の中で同じ Validator を呼ぶ
 
+プレビューの読み取り役は、受け取った番号列の重複を消さない。同じ ID が2回あれば Validator が `configuration.duplicate_category` を返す。決済はロック用に番号を一意化したあと、元の列に重複があれば同じ名前で拒否する。
+
 Validator 本体は `backend/application/validators/pc_configuration.py`。テーブルを見ない。カテゴリと属性の値だけを受け、問題のリストを返す。リストが空なら成功。
 
-構成画面の「一致性を確認」と、レジへ進む直前だけがプレビューを呼ぶ。入力のたびに自動では呼ばない。
+構成画面の「一致性を確認」と、レジへ進む直前だけがプレビューを呼ぶ。入力のたびに自動では呼ばない。呼び始めるとき、前回の成功結果はいったん捨てる。失敗したあとに古い「一致している」が残ってレジへ進まないため。
 
 ---
 
@@ -704,7 +724,7 @@ Validator 本体は `backend/application/validators/pc_configuration.py`。テ�
 | 今のユーザー | 共通 layout | `getCurrentUser` | `GET /api/v1/current-user` | `current_user_show` | request 上のユーザー |
 | 登録 | `/register` | `createRegistration` | `POST /api/v1/registrations` | `registration_create` | `create_registration` |
 | ログイン | `/login` | `createSession` | `POST /api/v1/sessions` | `session_create` | `create_session` |
-| ログアウト | ヘッダ | `deleteSession` | `DELETE /api/v1/sessions` | `session_delete` | cookie を消す |
+| ログアウト | 共通 layout | `deleteSession` | `DELETE /api/v1/sessions` | `session_delete` | cookie を消す |
 | 掲載パーツ一覧 | `/configure` | `listParts` | `GET /api/v1/parts` | `part_list` | `list_listed_parts` |
 | 一致性プレビュー | 構成・レジ | `evaluateConfiguration` | `POST /api/v1/configurations/evaluations` | `configuration_evaluate` | `evaluate_pc_configuration` |
 | 決済 | `/checkout` | `createOrder` | `POST /api/v1/orders` | `order_create` | `create_order` |
@@ -736,7 +756,7 @@ Validator 本体は `backend/application/validators/pc_configuration.py`。テ�
 
 ### 「部品から API を追えない」
 
-`PartCard` や `PartSummaryList` はデータを取らない。親 page が渡した値と、親が渡した「選ばれたとき呼ぶ関数」を見る。API を追う入口は page か `+page.ts`。
+`PartCard` や `PartSummaryList`、`AppHeader` はデータを取らない。親 page または layout が渡した値と、「押されたとき呼ぶ関数」を見る。API を追う入口は page、`+page.ts`、または `+layout.svelte` である。
 
 ### 「同じ判定が画面とサーバにある」
 

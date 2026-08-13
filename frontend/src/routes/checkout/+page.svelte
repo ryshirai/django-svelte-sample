@@ -19,36 +19,44 @@
 	let { data } = $props();
 	let evaluationOverride = $state<ConfigurationEvaluationOutput | null>(null);
 	const evaluation = $derived(evaluationOverride ?? data.evaluation);
-	let errorMessage = $state('');
+	const loadErrorMessage = $derived(data.loadError === '' ? '' : messageForCode(data.loadError));
+	let actionError = $state('');
+	const errorMessage = $derived(actionError !== '' ? actionError : loadErrorMessage);
 	let submitting = $state(false);
+	let createdPublicId = $state<string | null>(null);
 
 	async function loadEvaluation(): Promise<void> {
+		actionError = '';
+		evaluationOverride = null;
 		try {
 			evaluationOverride = await evaluateConfiguration({ part_ids: toPartIds() });
 		} catch (error) {
-			errorMessage = isApiError(error) ? messageForApiError(error) : uiMessages.unknownError;
+			actionError = isApiError(error) ? messageForApiError(error) : uiMessages.unknownError;
 		}
 	}
 
 	async function pay(event: Event): Promise<void> {
 		event.preventDefault();
-		errorMessage = '';
+		actionError = '';
 		if (!hasRequiredParts()) {
 			return;
 		}
 		submitting = true;
 		try {
-			// POST のあと GET で置き換えてからドラフトを空にする。失敗時はドラフトを残す。
-			const created = await createOrder({
-				part_ids: toPartIds(),
-				...orderDraftState.shipping
-			});
-			const order = await getOrder(created.public_id);
+			// POST 成功後は GET だけ再試行する。同じドラフトで二重注文しない。
+			if (createdPublicId === null) {
+				const created = await createOrder({
+					part_ids: toPartIds(),
+					...orderDraftState.shipping
+				});
+				createdPublicId = created.public_id;
+			}
+			const order = await getOrder(createdPublicId);
 			setSyncedOrder(order);
 			resetDraft();
-			await goto(resolve(`/orders/${created.public_id}`));
+			await goto(resolve(`/orders/${createdPublicId}`));
 		} catch (error) {
-			errorMessage = isApiError(error) ? messageForApiError(error) : uiMessages.unknownError;
+			actionError = isApiError(error) ? messageForApiError(error) : uiMessages.unknownError;
 		} finally {
 			submitting = false;
 		}
@@ -73,7 +81,7 @@
 		<a class="text-sm text-accent" href={resolve('/configure')}>{uiMessages.backToConfigure}</a>
 	</div>
 	{#if errorMessage !== ''}
-		<p class="mt-4 text-sm text-danger">{errorMessage}</p>
+		<p class="mt-4 text-sm text-danger" role="alert">{errorMessage}</p>
 	{/if}
 	<div class="mt-6 flex gap-6">
 		<div class="flex min-w-0 flex-1 flex-col gap-6">

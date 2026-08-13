@@ -1,8 +1,10 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { uiMessages } from '$lib/messages/ui';
-	import type { CreatePartInput } from '$lib/types/part';
+	import type { CreatePartInput, PartCategory } from '$lib/types/part';
 	import { partCategories, partCategoryLabels } from '$lib/types/partCategory';
 	import PartAttributeFields from './PartAttributeFields.svelte';
+	import { emptyPartForm } from './partFormDefaults';
 
 	type Props = {
 		value: CreatePartInput;
@@ -12,7 +14,20 @@
 	};
 
 	let { value, submitLabel, onsubmit, errorMessage }: Props = $props();
-	let form = $state.raw({ ...value });
+	let form = $state(untrack(() => ({ ...value })));
+
+	function applyCategory(category: PartCategory): void {
+		const cleared = emptyPartForm(category);
+		form = {
+			...cleared,
+			sku: form.sku,
+			name: form.name,
+			unit_price: form.unit_price,
+			stock_quantity: form.stock_quantity,
+			is_listed: form.is_listed,
+			category
+		};
+	}
 
 	async function submit(event: Event): Promise<void> {
 		event.preventDefault();
@@ -21,7 +36,7 @@
 </script>
 
 {#if errorMessage !== ''}
-	<p class="mb-4 text-sm text-danger">{errorMessage}</p>
+	<p class="mb-4 text-sm text-danger" role="alert">{errorMessage}</p>
 {/if}
 <form class="flex flex-col gap-4" onsubmit={submit}>
 	<label class="flex flex-col gap-1 text-sm text-fg">
@@ -44,7 +59,8 @@
 		{uiMessages.category}
 		<select
 			class="rounded-md border border-border bg-bg p-3 text-base text-fg"
-			bind:value={form.category}
+			value={form.category}
+			onchange={(event) => applyCategory(event.currentTarget.value as PartCategory)}
 		>
 			{#each partCategories as category (category)}
 				<option value={category}>{partCategoryLabels[category]}</option>

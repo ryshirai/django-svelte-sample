@@ -65,6 +65,31 @@ def test_update_part_changes_stock_and_listing() -> None:
 
 
 @pytest.mark.django_db
+def test_update_part_clears_unused_attributes_on_category_change() -> None:
+    part_id = create_part(
+        input=part_input(
+            sku="CPU-AM5-A",
+            name="A",
+            category="cpu",
+            socket="am5",
+            tdp_watts=65,
+        )
+    )
+    update_part(
+        input=UpdatePartInput(
+            part_id=part_id,
+            category="storage",
+            interface="m2",
+        )
+    )
+    part = Part.objects.get(pk=part_id)
+    assert part.category == "storage"
+    assert part.interface == "m2"
+    assert part.socket == ""
+    assert part.tdp_watts is None
+
+
+@pytest.mark.django_db
 def test_list_listed_parts_excludes_unlisted() -> None:
     create_compatible_parts()
     create_part(

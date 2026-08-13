@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { onAuthenticationRequired } from '$lib/api/authenticationExpiry';
 import { apiGet, apiPost } from '$lib/api/client';
 import { ApiError } from '$lib/errors/apiError';
 
 afterEach(() => {
 	vi.unstubAllGlobals();
+	onAuthenticationRequired(() => undefined);
 });
 
 function jsonResponse(body: unknown, status: number): Response {
@@ -53,5 +55,29 @@ describe('api client', () => {
 			password: 'password1'
 		});
 		expect(result.email).toBe('a@example.com');
+	});
+
+	it('notifies the layout when authentication is required', async () => {
+		const notified = vi.fn();
+		onAuthenticationRequired(notified);
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockResolvedValue(
+				jsonResponse(
+					{
+						error: {
+							code: 'authentication.required',
+							message: 'ログインしてください。',
+							details: {}
+						}
+					},
+					401
+				)
+			)
+		);
+
+		const error = await apiGet('/api/v1/orders').catch((caught) => caught);
+		expect(error).toBeInstanceOf(ApiError);
+		expect(notified).toHaveBeenCalledTimes(1);
 	});
 });

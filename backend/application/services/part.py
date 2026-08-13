@@ -9,6 +9,7 @@ from application.errors.part import PartNotFoundError, PartSkuAlreadyUsedError
 from application.models.part import Part
 from application.validators.part_attributes import (
     PartAttributeValues,
+    unused_attribute_defaults,
     validate_part_attributes,
 )
 
@@ -98,7 +99,6 @@ class UpdatePartInput:
 
 @transaction.atomic
 def create_part(*, input: CreatePartInput) -> int:
-    validate_part_attributes(values=_attributes_from_create(input=input))
     part = Part(
         sku=input.sku,
         name=input.name,
@@ -122,6 +122,8 @@ def create_part(*, input: CreatePartInput) -> int:
         max_cooler_height_mm=input.max_cooler_height_mm,
         height_mm=input.height_mm,
     )
+    _clear_unused_attributes(part=part)
+    validate_part_attributes(values=_attributes_from_part(part=part))
     try:
         part.save()
     except IntegrityError as error:
@@ -136,33 +138,15 @@ def update_part(*, input: UpdatePartInput) -> int:
     except Part.DoesNotExist as error:
         raise PartNotFoundError() from error
     changed = _apply_part_updates(part=part, input=input)
+    for field_name in _clear_unused_attributes(part=part):
+        if field_name not in changed:
+            changed.append(field_name)
     validate_part_attributes(values=_attributes_from_part(part=part))
     try:
         part.save(update_fields=[*changed, "updated_at"])
     except IntegrityError as error:
         raise PartSkuAlreadyUsedError() from error
     return part.id
-
-
-def _attributes_from_create(*, input: CreatePartInput) -> PartAttributeValues:
-    return PartAttributeValues(
-        category=input.category,
-        socket=input.socket,
-        tdp_watts=input.tdp_watts,
-        memory_type=input.memory_type,
-        form_factor=input.form_factor,
-        memory_slot_count=input.memory_slot_count,
-        sata_port_count=input.sata_port_count,
-        m2_slot_count=input.m2_slot_count,
-        module_count=input.module_count,
-        capacity_gb=input.capacity_gb,
-        length_mm=input.length_mm,
-        interface=input.interface,
-        wattage=input.wattage,
-        max_gpu_length_mm=input.max_gpu_length_mm,
-        max_cooler_height_mm=input.max_cooler_height_mm,
-        height_mm=input.height_mm,
-    )
 
 
 def _attributes_from_part(*, part: Part) -> PartAttributeValues:
@@ -194,4 +178,13 @@ def _apply_part_updates(*, part: Part, input: UpdatePartInput) -> list[str]:
             continue
         setattr(part, field_name, value)
         changed.append(field_name)
+    return changed
+
+
+def _clear_unused_attributes(*, part: Part) -> list[str]:
+    changed: list[str] = []
+    for field_name, empty in unused_attribute_defaults(category=part.category).items():
+        if getattr(part, field_name) != empty:
+            setattr(part, field_name, empty)
+            changed.append(field_name)
     return changed

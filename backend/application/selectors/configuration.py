@@ -26,8 +26,11 @@ def evaluate_pc_configuration(*, part_ids: tuple[int, ...]) -> ConfigurationEval
     for part in parts:
         if not part.is_listed:
             raise OrderPartUnlistedError(details={"sku": part.sku})
+    # 重複 ID は消さず Validator に渡す。同一 ID は同一カテゴリ重複になる。
+    parts_by_id = {part.id: part for part in parts}
+    ordered = tuple(parts_by_id[part_id] for part_id in part_ids)
     issues = validate_pc_configuration(
-        parts=tuple(_to_configuration_part(part=part) for part in parts)
+        parts=tuple(_to_configuration_part(part=part) for part in ordered)
     )
     return ConfigurationEvaluation(is_valid=len(issues) == 0, issues=issues)
 

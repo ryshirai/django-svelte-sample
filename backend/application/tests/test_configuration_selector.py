@@ -74,3 +74,22 @@ def test_evaluate_pc_configuration_rejects_unlisted_part() -> None:
 def test_evaluate_pc_configuration_rejects_missing_part() -> None:
     with pytest.raises(PartNotFoundError):
         evaluate_pc_configuration(part_ids=(999_999,))
+
+
+@pytest.mark.django_db
+def test_evaluate_pc_configuration_flags_duplicate_part_id() -> None:
+    parts = create_compatible_parts()
+    evaluation = evaluate_pc_configuration(
+        part_ids=(
+            parts["cpu"].id,
+            parts["cpu"].id,
+            parts["motherboard"].id,
+            parts["memory"].id,
+            parts["storage"].id,
+            parts["psu"].id,
+            parts["case"].id,
+        )
+    )
+    assert evaluation.is_valid is False
+    assert evaluation.issues[0].code == "configuration.duplicate_category"
+    assert evaluation.issues[0].details["category"] == "cpu"

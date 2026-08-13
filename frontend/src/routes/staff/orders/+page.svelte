@@ -1,14 +1,9 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import OrderStatusText from '$lib/components/OrderStatusText.svelte';
 	import { uiMessages } from '$lib/messages/ui';
 
 	let { data } = $props();
-
-	function openOrder(publicId: string): void {
-		void goto(resolve(`/staff/orders/${publicId}`));
-	}
 </script>
 
 <svelte:head>
@@ -21,18 +16,15 @@
 		<table class="w-full text-left text-base">
 			<thead>
 				<tr class="border-b border-border bg-bg-subtle text-sm font-medium text-fg-muted">
-					<th class="px-4 py-3">{uiMessages.orderNumber}</th>
-					<th class="px-4 py-3">{uiMessages.status}</th>
-					<th class="px-4 py-3">{uiMessages.total}</th>
-					<th class="px-4 py-3">{uiMessages.orderedAt}</th>
+					<th class="px-4 py-3" scope="col">{uiMessages.orderNumber}</th>
+					<th class="px-4 py-3" scope="col">{uiMessages.status}</th>
+					<th class="px-4 py-3" scope="col">{uiMessages.total}</th>
+					<th class="px-4 py-3" scope="col">{uiMessages.orderedAt}</th>
 				</tr>
 			</thead>
 			<tbody>
 				{#each data.orders as order (order.public_id)}
-					<tr
-						class="cursor-pointer border-b border-border last:border-b-0 hover:bg-bg"
-						onclick={() => openOrder(order.public_id)}
-					>
+					<tr class="border-b border-border last:border-b-0 hover:bg-bg">
 						<td class="px-4 py-3">
 							<a class="text-sm text-fg" href={resolve(`/staff/orders/${order.public_id}`)}>
 								{order.public_id}

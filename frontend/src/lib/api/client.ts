@@ -1,3 +1,4 @@
+import { notifyAuthenticationRequired } from '$lib/api/authenticationExpiry';
 import { ApiError } from '$lib/errors/apiError';
 
 type Envelope = {
@@ -69,7 +70,11 @@ async function toApiError(response: Response): Promise<ApiError> {
 function toApiErrorFromPayload(payload: Envelope, httpStatus: number): ApiError {
 	const error = payload.error;
 	// 未定義 code は unknown。frontend 側で code を発明しない。
-	return new ApiError(error?.code ?? 'unknown', error?.details ?? {}, httpStatus);
+	const apiError = new ApiError(error?.code ?? 'unknown', error?.details ?? {}, httpStatus);
+	if (apiError.code === 'authentication.required' && httpStatus === 401) {
+		notifyAuthenticationRequired();
+	}
+	return apiError;
 }
 
 function readCsrfToken(): string {

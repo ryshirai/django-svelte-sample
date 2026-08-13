@@ -46,18 +46,22 @@
 	);
 
 	// クリックとレジ直前だけ。$effect では呼ばない。
-	async function checkCompatibility(): Promise<void> {
+	async function checkCompatibility(): Promise<boolean> {
 		errorMessage = '';
+		evaluation = null;
 		try {
-			evaluation = await evaluateConfiguration({ part_ids: toPartIds() });
+			const next = await evaluateConfiguration({ part_ids: toPartIds() });
+			evaluation = next;
+			return next.is_valid;
 		} catch (error) {
 			errorMessage = isApiError(error) ? messageForApiError(error) : uiMessages.unknownError;
+			return false;
 		}
 	}
 
 	async function goCheckout(): Promise<void> {
-		await checkCompatibility();
-		if (evaluation?.is_valid && hasRequiredParts()) {
+		const valid = await checkCompatibility();
+		if (valid && hasRequiredParts()) {
 			await goto(resolve('/checkout'));
 		}
 	}
@@ -81,7 +85,7 @@
 		</div>
 	</section>
 	{#if errorMessage !== ''}
-		<p class="mt-4 text-sm text-danger">{errorMessage}</p>
+		<p class="mt-4 text-sm text-danger" role="alert">{errorMessage}</p>
 	{/if}
 	<section class="mt-6">
 		<CategoryRail

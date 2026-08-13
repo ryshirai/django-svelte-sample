@@ -11,8 +11,8 @@ from application.api.serializers.part import (
     PartListQuerySerializer,
     PartOutputSerializer,
     UpdatePartInputSerializer,
+    part_output_payload,
 )
-from application.api.views.part import part_output_payload
 from application.selectors.part import PartFilter, get_part, list_parts
 from application.services.part import (
     UNSET,

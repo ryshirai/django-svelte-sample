@@ -8,8 +8,8 @@ from rest_framework.response import Response
 from application.api.serializers.order import (
     OrderListItemOutputSerializer,
     OrderOutputSerializer,
+    order_output_payload,
 )
-from application.api.views.order import order_payload
 from application.selectors.order import get_order, list_orders
 from application.services.order import (
     OrderPublicIdInput,
@@ -32,7 +32,7 @@ def staff_order_list(request: Request) -> Response:
 def staff_order_show(request: Request, public_id: UUID) -> Response:
     del request
     order = get_order(public_id=public_id)
-    output = OrderOutputSerializer(order_payload(order=order))
+    output = OrderOutputSerializer(order_output_payload(order=order))
     return Response(output.data)
 
 

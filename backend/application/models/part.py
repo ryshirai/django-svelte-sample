@@ -47,3 +47,26 @@ class Part(models.Model):
     height_mm = models.PositiveIntegerField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(unit_price__gte=1),
+                name="part_unit_price_gte_1",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(
+                    category__in=[
+                        "cpu",
+                        "motherboard",
+                        "memory",
+                        "storage",
+                        "psu",
+                        "case",
+                        "gpu",
+                        "cpu_cooler",
+                    ]
+                ),
+                name="part_category_allowed",
+            ),
+        ]

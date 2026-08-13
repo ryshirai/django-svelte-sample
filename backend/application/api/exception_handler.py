@@ -2,6 +2,7 @@ from typing import Any
 
 from rest_framework import status
 from rest_framework.exceptions import (
+    APIException,
     NotAuthenticated,
     PermissionDenied,
     ValidationError,
@@ -48,6 +49,13 @@ def application_exception_handler(
             code="input.invalid",
             http_status=status.HTTP_400_BAD_REQUEST,
             details=_validation_details(exc=exc),
+        )
+    if isinstance(exc, APIException):
+        # 未定義 code は足さない。framework 例外は input.invalid の envelope。
+        return _error_response(
+            code="input.invalid",
+            http_status=int(exc.status_code),
+            details={},
         )
     return drf_exception_handler(exc, context)
 

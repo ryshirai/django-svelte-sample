@@ -5,6 +5,33 @@ from rest_framework import serializers
 from application.models.part import Part
 
 
+def part_output_payload(*, part: Part) -> dict[str, Any]:
+    return {
+        "id": part.id,
+        "sku": part.sku,
+        "name": part.name,
+        "category": part.category,
+        "unit_price": part.unit_price,
+        "stock_quantity": part.stock_quantity,
+        "is_listed": part.is_listed,
+        "socket": part.socket,
+        "tdp_watts": part.tdp_watts,
+        "memory_type": part.memory_type,
+        "form_factor": part.form_factor,
+        "memory_slot_count": part.memory_slot_count,
+        "sata_port_count": part.sata_port_count,
+        "m2_slot_count": part.m2_slot_count,
+        "module_count": part.module_count,
+        "capacity_gb": part.capacity_gb,
+        "length_mm": part.length_mm,
+        "interface": part.interface,
+        "wattage": part.wattage,
+        "max_gpu_length_mm": part.max_gpu_length_mm,
+        "max_cooler_height_mm": part.max_cooler_height_mm,
+        "height_mm": part.height_mm,
+    }
+
+
 class PartOutputSerializer(serializers.Serializer[Any]):
     id = serializers.IntegerField()
     sku = serializers.CharField()

@@ -3,6 +3,31 @@ from typing import Any
 from rest_framework import serializers
 
 
+def order_output_payload(*, order: Any) -> dict[str, object]:
+    return {
+        "public_id": order.public_id,
+        "status": order.status,
+        "total_price": order.total_price,
+        "created_at": order.created_at,
+        "recipient_name": order.recipient_name,
+        "postal_code": order.postal_code,
+        "prefecture": order.prefecture,
+        "city": order.city,
+        "address_line": order.address_line,
+        "phone": order.phone,
+        "lines": [
+            {
+                "category": line.category,
+                "sku": line.sku,
+                "name": line.name,
+                "unit_price": line.unit_price,
+                "quantity": line.quantity,
+            }
+            for line in order.lines
+        ],
+    }
+
+
 class CreateOrderInputSerializer(serializers.Serializer[Any]):
     # 決済は空配列を入力エラーにする。プレビューとは違う。
     part_ids = serializers.ListField(

@@ -32,7 +32,12 @@
 	{#each partCategories as category (category)}
 		{@const chosenName = chosenNames[category]}
 		<li class="min-w-0">
-			<button type="button" class={tileClass(category)} onclick={() => onselect(category)}>
+			<button
+				type="button"
+				class={tileClass(category)}
+				aria-pressed={selectedCategory === category}
+				onclick={() => onselect(category)}
+			>
 				<CatalogPhoto {category} alt="" class="h-16 w-full rounded-md object-cover" />
 				<span class="block truncate text-sm font-medium text-fg"
 					>{partCategoryLabels[category]}</span

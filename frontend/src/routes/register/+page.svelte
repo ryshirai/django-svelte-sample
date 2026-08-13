@@ -35,7 +35,7 @@
 
 <AuthPanel title={uiMessages.registerTitle} lead={uiMessages.registerLead}>
 	{#if errorMessage !== ''}
-		<p class="mt-4 text-sm text-danger">{errorMessage}</p>
+		<p id="register-error" class="mt-4 text-sm text-danger" role="alert">{errorMessage}</p>
 	{/if}
 	<form class="mt-6 flex flex-col gap-4" onsubmit={submit}>
 		<label class="flex flex-col gap-1 text-sm text-fg">
@@ -45,6 +45,8 @@
 				type="email"
 				bind:value={email}
 				required
+				aria-invalid={errorMessage !== ''}
+				aria-describedby={errorMessage !== '' ? 'register-error' : undefined}
 			/>
 		</label>
 		<label class="flex flex-col gap-1 text-sm text-fg">
@@ -55,6 +57,8 @@
 				bind:value={password}
 				required
 				minlength="8"
+				aria-invalid={errorMessage !== ''}
+				aria-describedby={errorMessage !== '' ? 'register-error' : undefined}
 			/>
 		</label>
 		<button

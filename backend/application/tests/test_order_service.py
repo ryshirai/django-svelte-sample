@@ -3,7 +3,10 @@ from uuid import uuid4
 import pytest
 from django.contrib.auth.models import User
 
-from application.errors.configuration import ConfigurationSocketMismatchError
+from application.errors.configuration import (
+    ConfigurationDuplicateCategoryError,
+    ConfigurationSocketMismatchError,
+)
 from application.errors.order import (
     OrderInsufficientStockError,
     OrderInvalidStatusTransitionError,
@@ -147,6 +150,27 @@ def test_create_order_rejects_insufficient_stock() -> None:
                 ],
             )
         )
+
+
+@pytest.mark.django_db
+def test_create_order_rejects_duplicate_part_id() -> None:
+    user = _user()
+    parts = create_compatible_parts()
+    part_ids = [
+        parts["cpu"].id,
+        parts["cpu"].id,
+        parts["motherboard"].id,
+        parts["memory"].id,
+        parts["storage"].id,
+        parts["psu"].id,
+        parts["case"].id,
+    ]
+    with pytest.raises(ConfigurationDuplicateCategoryError) as error:
+        create_order(input=_order_input(user_id=user.id, part_ids=part_ids))
+    assert error.value.details["category"] == "cpu"
+    assert Order.objects.count() == 0
+    parts["cpu"].refresh_from_db()
+    assert parts["cpu"].stock_quantity == 10
 
 
 @pytest.mark.django_db

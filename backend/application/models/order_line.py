@@ -30,5 +30,13 @@ class OrderLine(models.Model):
             models.UniqueConstraint(
                 fields=["order", "category"],
                 name="order_line_unique_category_per_order",
-            )
+            ),
+            models.CheckConstraint(
+                condition=models.Q(quantity=1),
+                name="order_line_quantity_is_1",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(unit_price__gte=1),
+                name="order_line_unit_price_gte_1",
+            ),
         ]

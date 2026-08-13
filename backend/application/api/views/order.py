@@ -11,10 +11,10 @@ from application.api.serializers.order import (
     CreateOrderOutputSerializer,
     OrderListItemOutputSerializer,
     OrderOutputSerializer,
+    order_output_payload,
 )
 from application.api.views.auth_user import authenticated_user_id
 from application.selectors.order import (
-    OrderDetail,
     get_order_for_user,
     list_orders_for_user,
 )
@@ -58,30 +58,5 @@ def order_show(request: Request, public_id: UUID) -> Response:
         public_id=public_id,
         user_id=authenticated_user_id(request=request),
     )
-    output = OrderOutputSerializer(order_payload(order=order))
+    output = OrderOutputSerializer(order_output_payload(order=order))
     return Response(output.data)
-
-
-def order_payload(*, order: OrderDetail) -> dict[str, object]:
-    return {
-        "public_id": order.public_id,
-        "status": order.status,
-        "total_price": order.total_price,
-        "created_at": order.created_at,
-        "recipient_name": order.recipient_name,
-        "postal_code": order.postal_code,
-        "prefecture": order.prefecture,
-        "city": order.city,
-        "address_line": order.address_line,
-        "phone": order.phone,
-        "lines": [
-            {
-                "category": line.category,
-                "sku": line.sku,
-                "name": line.name,
-                "unit_price": line.unit_price,
-                "quantity": line.quantity,
-            }
-            for line in order.lines
-        ],
-    }

@@ -581,7 +581,7 @@ backend/application/
   messages/configuration.py
   messages/order.py
   api/exception_handler.py
-  api/permissions.py        標準クラスの指定のみ。独自認可ロジックは置かない
+  api/authentication.py     SessionAuthentication を未ログイン CSRF 付きに拡張
   api/serializers/authentication.py
   api/serializers/part.py
   api/serializers/configuration.py
@@ -599,7 +599,7 @@ backend/application/
   management/commands/seed_catalog.py
 ```
 
-Service / Selector の公開関数名はこの一覧が正。
+Service / Selector の公開関数名はこの一覧が正。認可は View で DRF の `IsAuthenticated` / `IsAdminUser` を指定する。`api/permissions.py` は置かない。
 
 ### Frontend
 
@@ -626,14 +626,15 @@ frontend/src/
   lib/messages/configuration.ts
   lib/messages/order.ts
   lib/messages/ui.ts
-  lib/states/currentUserState.ts
-  lib/states/orderDraftState.ts
-  lib/states/syncedOrderState.ts
+  lib/states/currentUserState.svelte.ts
+  lib/states/orderDraftState.svelte.ts
+  lib/states/syncedOrderState.svelte.ts
   lib/components/AppHeader.svelte
   lib/components/PartSummaryList.svelte
   lib/components/OrderStatusText.svelte
   routes/+layout.ts
   routes/+layout.svelte
+  routes/+error.svelte
   routes/+page.ts
   routes/+page.svelte
   routes/login/+page.svelte

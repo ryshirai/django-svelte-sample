@@ -4,7 +4,10 @@ from uuid import UUID
 
 from django.db import transaction
 
-from application.errors.configuration import CONFIGURATION_ERROR_BY_CODE
+from application.errors.configuration import (
+    CONFIGURATION_ERROR_BY_CODE,
+    ConfigurationDuplicateCategoryError,
+)
 from application.errors.order import (
     OrderInsufficientStockError,
     OrderInvalidStatusTransitionError,
@@ -41,6 +44,7 @@ class OrderPublicIdInput:
 @transaction.atomic
 def create_order(*, input: CreateOrderInput) -> UUID:
     parts = _lock_parts(part_ids=input.part_ids)
+    _ensure_unique_part_ids(part_ids=input.part_ids, parts=parts)
     _ensure_parts_purchasable(parts=parts)
     _ensure_configuration(parts=parts)
     _decrement_stock(parts=parts)
@@ -90,6 +94,20 @@ def _lock_parts(*, part_ids: tuple[int, ...]) -> list[Part]:
         # 1 件でも欠けていれば part.not_found。どれが欠けたかは出さない。
         raise PartNotFoundError()
     return parts
+
+
+def _ensure_unique_part_ids(*, part_ids: tuple[int, ...], parts: list[Part]) -> None:
+    # ロック用に一意化したあと、元の ID 列の重複を拒否する。
+    if len(part_ids) == len(set(part_ids)):
+        return
+    parts_by_id = {part.id: part for part in parts}
+    seen: set[int] = set()
+    for part_id in part_ids:
+        if part_id in seen:
+            raise ConfigurationDuplicateCategoryError(
+                details={"category": parts_by_id[part_id].category}
+            )
+        seen.add(part_id)
 
 
 def _ensure_parts_purchasable(*, parts: list[Part]) -> None:

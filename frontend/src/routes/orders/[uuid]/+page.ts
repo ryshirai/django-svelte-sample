@@ -1,5 +1,6 @@
 import { getOrder } from '$lib/api/orders';
 import { isApiError } from '$lib/errors/apiError';
+import { throwLoadFailure } from '$lib/errors/loadFailure';
 import { setSyncedOrder } from '$lib/states/syncedOrderState.svelte';
 import type { PageLoad } from './$types';
 
@@ -14,6 +15,6 @@ export const load: PageLoad = async ({ params }) => {
 			setSyncedOrder(null);
 			return { order: null, notFound: true };
 		}
-		throw error;
+		throwLoadFailure(error);
 	}
 };

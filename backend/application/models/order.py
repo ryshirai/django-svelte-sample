@@ -40,3 +40,17 @@ class Order(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(total_price__gte=1),
+                name="order_total_price_gte_1",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(
+                    status__in=["paid", "preparing", "shipped", "cancelled"]
+                ),
+                name="order_status_allowed",
+            ),
+        ]

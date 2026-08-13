@@ -1,15 +1,10 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import CatalogPhoto from '$lib/components/CatalogPhoto.svelte';
 	import { uiMessages } from '$lib/messages/ui';
 	import { partCategoryLabels } from '$lib/types/partCategory';
 
 	let { data } = $props();
-
-	function openPart(id: number): void {
-		void goto(resolve(`/staff/parts/${id}/edit`));
-	}
 </script>
 
 <svelte:head>
@@ -30,20 +25,17 @@
 		<table class="w-full text-left text-base">
 			<thead>
 				<tr class="border-b border-border bg-bg-subtle text-sm font-medium text-fg-muted">
-					<th class="px-4 py-3">{uiMessages.sku}</th>
-					<th class="px-4 py-3">{uiMessages.name}</th>
-					<th class="px-4 py-3">{uiMessages.category}</th>
-					<th class="px-4 py-3">{uiMessages.unitPrice}</th>
-					<th class="px-4 py-3">{uiMessages.stockQuantity}</th>
-					<th class="px-4 py-3">{uiMessages.isListed}</th>
+					<th class="px-4 py-3" scope="col">{uiMessages.sku}</th>
+					<th class="px-4 py-3" scope="col">{uiMessages.name}</th>
+					<th class="px-4 py-3" scope="col">{uiMessages.category}</th>
+					<th class="px-4 py-3" scope="col">{uiMessages.unitPrice}</th>
+					<th class="px-4 py-3" scope="col">{uiMessages.stockQuantity}</th>
+					<th class="px-4 py-3" scope="col">{uiMessages.isListed}</th>
 				</tr>
 			</thead>
 			<tbody>
 				{#each data.parts as part (part.id)}
-					<tr
-						class="cursor-pointer border-b border-border last:border-b-0 hover:bg-bg"
-						onclick={() => openPart(part.id)}
-					>
+					<tr class="border-b border-border last:border-b-0 hover:bg-bg">
 						<td class="px-4 py-3">
 							<span class="flex items-center gap-3">
 								<CatalogPhoto

@@ -13,6 +13,7 @@ REQUIRED_STRINGS: dict[str, tuple[str, ...]] = {
     Part.Category.MOTHERBOARD: ("socket", "memory_type", "form_factor"),
     Part.Category.MEMORY: ("memory_type",),
     Part.Category.STORAGE: ("interface",),
+    Part.Category.CASE: ("form_factor",),
     Part.Category.CPU_COOLER: ("socket",),
 }
 
@@ -36,6 +37,21 @@ ALLOWED_VALUES: dict[str, frozenset[str]] = {
     "form_factor": FORM_FACTORS,
     "interface": INTERFACES,
 }
+
+STRING_ATTRIBUTES = ("socket", "memory_type", "form_factor", "interface")
+INT_ATTRIBUTES = (
+    "tdp_watts",
+    "memory_slot_count",
+    "sata_port_count",
+    "m2_slot_count",
+    "module_count",
+    "capacity_gb",
+    "length_mm",
+    "wattage",
+    "max_gpu_length_mm",
+    "max_cooler_height_mm",
+    "height_mm",
+)
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -66,9 +82,24 @@ def validate_part_attributes(*, values: PartAttributeValues) -> None:
         *_missing_strings(values=values),
         *_missing_ints(values=values),
         *_invalid_choices(values=values),
+        *_unused_populated(values=values),
     ]
     if fields:
         raise PartInvalidAttributesError(details={"fields": fields})
+
+
+def unused_attribute_defaults(*, category: str) -> dict[str, str | None]:
+    used = set(REQUIRED_STRINGS.get(category, ())) | set(
+        REQUIRED_INTS.get(category, ())
+    )
+    defaults: dict[str, str | None] = {}
+    for field_name in STRING_ATTRIBUTES:
+        if field_name not in used:
+            defaults[field_name] = ""
+    for field_name in INT_ATTRIBUTES:
+        if field_name not in used:
+            defaults[field_name] = None
+    return defaults
 
 
 def _missing_strings(*, values: PartAttributeValues) -> list[str]:
@@ -94,3 +125,13 @@ def _invalid_choices(*, values: PartAttributeValues) -> list[str]:
         if current != "" and current not in allowed:
             invalid.append(field_name)
     return invalid
+
+
+def _unused_populated(*, values: PartAttributeValues) -> list[str]:
+    unused: list[str] = []
+    for field_name, empty in unused_attribute_defaults(
+        category=values.category
+    ).items():
+        if getattr(values, field_name) != empty:
+            unused.append(field_name)
+    return unused

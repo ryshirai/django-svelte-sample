@@ -7,11 +7,18 @@ export default defineConfig({
 	server: {
 		host: true,
 		port: 5173,
-		strictPort: true
+		strictPort: true,
+		// ブラウザ origin は 5173 のまま /api を Django へ渡す。
+		proxy: {
+			'/api': 'http://localhost:8000'
+		}
 	},
 	preview: {
 		host: true,
-		port: 5173
+		port: 5173,
+		proxy: {
+			'/api': 'http://localhost:8000'
+		}
 	},
 	plugins: [tailwindcss(), sveltekit()],
 	test: {

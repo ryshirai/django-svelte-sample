@@ -126,13 +126,19 @@ arbitrary value（`[...]`）は使わない。足りない段階は、画面の�
 	--color-inherit: inherit;
 	--color-current: currentColor;
 	--color-transparent: transparent;
-	--color-fg: #1a1a1a;
-	--color-fg-muted: #5c5c5c;
-	--color-bg: #ffffff;
-	--color-bg-subtle: #f4f4f4;
-	--color-border: #d4d4d4;
-	--color-focus: #0b57d0;
+	--color-fg: #141820;
+	--color-fg-muted: #5c6370;
+	--color-fg-inverse: #f5f6f8;
+	--color-bg: #eef0f4;
+	--color-bg-elevated: #ffffff;
+	--color-bg-subtle: #e4e7ed;
+	--color-bg-brand: #121826;
+	--color-border: #cfd3dc;
+	--color-focus: #c45c12;
+	--color-accent: #c45c12;
 	--color-danger: #b42318;
+	--color-success: #157a3e;
+	--color-warning: #9a6700;
 
 	--font-sans: system-ui, 'Segoe UI', sans-serif;
 }
@@ -144,11 +150,17 @@ arbitrary value（`[...]`）は使わない。足りない段階は、画面の�
 |---|---|
 | 本文色 | `text-fg` |
 | 補助色 | `text-fg-muted` |
+| 反転本文 | `text-fg-inverse` |
 | 背景 | `bg-bg` |
+| カード背景 | `bg-bg-elevated` |
 | 弱い背景 | `bg-bg-subtle` |
+| ブランド面 | `bg-bg-brand` |
 | 枠線 | `border-border` |
 | フォーカス | `outline-focus` / `ring-focus` |
+| アクセント | `text-accent` / `border-accent` / `bg-accent` |
 | 危険 | `text-danger` / `bg-danger` |
+| 成功 | `text-success` / `bg-success` |
+| 注意 | `text-warning` / `bg-warning` |
 | フォント | `font-sans` |
 | 現在色 | `text-current` |
 | 透明 | `bg-transparent` |

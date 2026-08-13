@@ -86,6 +86,14 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# Vite が /api を proxy してもブラウザ origin は 5173 のまま。
+# cookie 付き CORS が要る。
+CORS_ALLOW_CREDENTIALS = True
+# JS が csrftoken を読み X-CSRFToken へ載せる。HttpOnly にしない。
+CSRF_COOKIE_HTTPONLY = False
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
+
 CORS_ALLOWED_ORIGINS = [
     origin.strip()
     for origin in os.environ.get(
@@ -107,4 +115,10 @@ REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": [
         "rest_framework.renderers.JSONRenderer",
     ],
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework.authentication.SessionAuthentication",
+    ],
+    "EXCEPTION_HANDLER": (
+        "application.api.exception_handler.application_exception_handler"
+    ),
 }

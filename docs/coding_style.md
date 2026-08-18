@@ -529,6 +529,26 @@ public / private function とも以下を上限とする。Svelte の `<script>`
 - 実装詳細に依存する過剰 mock を避ける。
 - frontend test で backend 内部実装を mock して業務ルールを再定義しない。
 
+### 25.1 Backend test のディレクトリ構成
+
+`backend/application/tests/` はフラットに置かず、5章の Backend 固定ディレクトリと同じ type(`services` / `selectors` / `validators` / `api` 等)でサブディレクトリを分ける。
+
+```text
+backend/application/tests/
+├── services/
+├── selectors/
+├── validators/
+├── api/
+│   ├── views/
+│   └── serializers/
+└── fixtures/          # 複数 test module から共有する fixture
+```
+
+- 対応する source module 1 つにつき、同じ type ディレクトリ配下に test module を 1 つ置く(`services/order.py` → `tests/services/test_order.py`)。
+- 型はディレクトリで表現し、ファイル名末尾に `_service` 等の type suffix を重複させない。
+- 型ディレクトリを見れば、その type の対象すべてに test が揃っているか一覧できることを目的とする。
+- 密接に関連する複数 module(例: 登録とセッションのように 1 Use Case 群とみなせるもの)を 1 test module にまとめる場合は、対象 module 名を明示し、まとめる理由を仕様で示す。
+
 ## 26. 境界判断
 
 ### 26.1 Service から複雑な read が必要
